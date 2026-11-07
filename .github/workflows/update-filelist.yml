@@ -1,0 +1,64 @@
+# 自动生成课件清单 files.json（讲解师个人课件仓库版）
+#
+# 每次向 main 分支推送（包括上传课件）后自动运行：
+# 扫描仓库根目录下支持的课件文件（html/ppt/pptx/pdf/doc/docx），
+# 把名字和大小写入 files.json 并提交回仓库。
+# 上课平台（kylinle.github.io/cp）读取这份清单，把本仓库的课件
+# 合并进对应讲解师的课件列表，并标注「讲师仓库」。
+#
+# 维护注意：课件只放仓库根目录（顶层），子文件夹不会被扫描。
+
+name: update-filelist
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-list:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 生成 files.json
+        run: |
+          python3 << 'EOF'
+          import json, os, time
+
+          EXT_OK = {'.html', '.ppt', '.pptx', '.pdf', '.doc', '.docx'}
+          SKIP_DIRS = {'.git', '.github'}
+
+          files = []
+          for name in sorted(os.listdir('.')):
+              if name.startswith('.') or name in SKIP_DIRS:
+                  continue
+              path = os.path.join('.', name)
+              ext = os.path.splitext(name)[1].lower()
+              if os.path.isfile(path) and ext in EXT_OK:
+                  files.append({'name': name, 'size': os.path.getsize(path)})
+
+          out = {
+              'generated_at': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
+              'files': files
+          }
+          with open('files.json', 'w', encoding='utf-8') as f:
+              json.dump(out, f, ensure_ascii=False, indent=2)
+          print('已生成 files.json，共', len(files), '个课件')
+          EOF
+
+      - name: 提交 files.json
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add files.json
+          if git diff --cached --quiet files.json; then
+            echo "files.json 没有变化，跳过提交"
+          else
+            git commit -m "chore: 更新课件清单 files.json [skip ci]"
+            git push origin HEAD:main
+            echo "files.json 已提交"
+          fi
