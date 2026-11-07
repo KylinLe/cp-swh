@@ -1,8 +1,8 @@
 # 自动生成课件清单 files.json（讲解师个人课件仓库版）
 #
 # 每次向 main 分支推送（包括上传课件）后自动运行：
-# 扫描仓库根目录下支持的课件文件（html/ppt/pptx/pdf/doc/docx），
-# 把名字和大小写入 files.json 并提交回仓库。
+# 扫描仓库根目录下**所有格式**的文件，把名字和大小写入
+# files.json 并提交回仓库（不收录隐藏文件、files.json 与 README.md）。
 # 上课平台（kylinle.github.io/cp）读取这份清单，把本仓库的课件
 # 合并进对应讲解师的课件列表，并标注「讲师仓库」。
 #
@@ -29,16 +29,14 @@ jobs:
           python3 << 'EOF'
           import json, os, time
 
-          EXT_OK = {'.html', '.ppt', '.pptx', '.pdf', '.doc', '.docx'}
-          SKIP_DIRS = {'.git', '.github'}
+          SKIP_NAMES = {'files.json', 'README.md'}
 
           files = []
           for name in sorted(os.listdir('.')):
-              if name.startswith('.') or name in SKIP_DIRS:
+              if name.startswith('.'):
                   continue
               path = os.path.join('.', name)
-              ext = os.path.splitext(name)[1].lower()
-              if os.path.isfile(path) and ext in EXT_OK:
+              if os.path.isfile(path) and name not in SKIP_NAMES:
                   files.append({'name': name, 'size': os.path.getsize(path)})
 
           out = {
